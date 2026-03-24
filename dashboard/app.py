@@ -1,244 +1,170 @@
 """
-Frontend para el Asistente Inteligente de Seguridad Urbana
-Tema visual inspirado en el OIJ.
+Dashboard de Películas
 Ejecutar: streamlit run dashboard/app.py
 """
+
 import streamlit as st
 import sys
 from pathlib import Path
+import plotly.express as px
 
-sys.path.append(str(Path(__file__).parent.parent.parent))
-try:
-    from src import config
-except ImportError:
-    config = None
+sys.path.append(str(Path(__file__).parent.parent))
+from src.helpers.carga_datos import CargadorDatos
+from src.eda.EDA import ProcesadorEDA
 
-# CONFIGURACIÓN DE PÁGINA
+
 st.set_page_config(
-    page_title="Asistente de Seguridad Urbana",
-    page_icon="⚖️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Movie Insights",
+    page_icon="🎬",
+    layout="wide"
 )
 
-# ESTILO PERSONALIZADO
+
 st.markdown("""
 <style>
-/* VARIABLES TEMA OIJ */
-:root {
-    --oij-blue: #002B5C;
-    --oij-gold: #D4AF37;
-    --oij-dark-gray: #1E2A3A;
-    --oij-medium-gray: #4A5B6E;
-    --oij-light-gray: #F8F9FC;
-    --primary-color: var(--oij-blue);
+.stApp {
+    background: linear-gradient(135deg, #F0F2F6, #E6ECF5);
 }
 
-/* RESET Y MEJORAS DE LEGIBILIDAD */
-body, .stApp {
-    background-color: #F5F7FA; 
-    color: var(--oij-dark-gray);
-}
-h1, h2, h3, h4, h5, h6 {
-    color: var(--oij-blue);
+/* Títulos */
+h1, h2, h3 {
+    color: #111827;
+    font-weight: 600;
 }
 
-/* SIDEBAR */
+/* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: var(--oij-blue);
-    border-right: 3px solid var(--oij-gold);
+    background-color: #0F172A;
 }
+
+/* Texto del sidebar */
 [data-testid="stSidebar"] * {
-    color: #FFFFFF !important;
-}
-[data-testid="stSidebar"] .stMarkdown h1,
-[data-testid="stSidebar"] .stMarkdown h2,
-[data-testid="stSidebar"] .stMarkdown h3 {
-    color: var(--oij-gold) !important;
-}
-[data-testid="stSidebar"] .stInfo {
-    background-color: rgba(255,255,255,0.1);
-    border-left-color: var(--oij-gold);
-    color: #FFFFFF !important;
-}
-[data-testid="stSidebar"] a {
-    color: var(--oij-gold) !important;
-    text-decoration: none;
-}
-[data-testid="stSidebar"] a:hover {
-    text-decoration: underline;
-}
-
-/* TABS */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    border-bottom: 1px solid var(--oij-gold);
-}
-.stTabs [data-baseweb="tab"] {
-    background-color: var(--oij-light-gray);
-    border-radius: 8px 8px 0 0;
-    font-weight: 600;
-    padding: 0.6rem 1.2rem;
-    transition: 0.2s;
-    color: var(--oij-dark-gray);
-}
-.stTabs [data-baseweb="tab"]:hover {
-    background-color: var(--oij-gold);
-    color: var(--oij-blue);
-}
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background-color: var(--oij-blue);
     color: white;
-    border-bottom: 2px solid var(--oij-gold);
 }
 
-/* SUB-HEADER (usado en los tabs) */
-.sub-header {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--oij-blue);
-    border-left: 4px solid var(--oij-gold);
-    padding-left: 1rem;
-    margin-top: 1rem;
+/* Dataframe */
+[data-testid="stDataFrame"] {
+    border-radius: 10px;
 }
-/* FOOTER */
-footer, div:has(> div[style*="text-align: center"]) {
-    border-top: 1px solid var(--oij-gold);
-    margin-top: 2rem;
-    padding-top: 1rem;
-    font-size: 0.9rem;
-    color: var(--oij-medium-gray);
+
+/* Botones */
+.stButton > button {
+    background-color: #6C63FF;
+    color: white;
+    border-radius: 8px;
+    border: none;
+    padding: 0.4rem 1rem;
+}
+
+.stButton > button:hover {
+    background-color: #5548c8;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # SIDEBAR
 with st.sidebar:
-    st.title("⚖️ SmartCityIA")
-    st.markdown("### Asistente de Seguridad Urbana para Costa Rica")
-    st.markdown("---")
-
-    st.markdown("### 👥 Equipo")
-    st.info("""
-    - Fernando Contreras Artavia
-    - Marisol Viquez Rivera
-    - Claudio Poveda Sánchez
-    - Monica Mendoza Morales
-    - Víctor Rojas Navarro
-
-    *IA Aplicada - CUC - 2026*
-    """)
+    st.title("🎬 Movie Insights")
+    st.title(" Analisis de Películas")
+    st.markdown("### Realizado por Marisol Víquez y Camila Jimenez")
 
     st.markdown("---")
-    st.markdown("### 🔗 Recursos")
-    st.markdown("[📖 Documentación API](http://localhost:8000/docs)")
-    st.markdown("[📁 GitHub del Proyecto](#)")
-    st.markdown("[📊 Dataset UCF Crime](https://www.kaggle.com/datasets/mission-ai/crimeucfdataset)")
+    st.markdown("### 🎛️ Filtros")
 
-# PÁGINA PRINCIPAL
-st.title("⚖️ Asistente Inteligente para Seguridad Urbana en Costa Rica")
-st.markdown("---")
 
-st.markdown("""
-Este sistema utiliza inteligencia artificial para apoyar a las autoridades de seguridad pública:
-- **Detección de actividad sospechosa** en imágenes de cámaras CCTV mediante CNN.
-- **Predicción temporal de incidentes** por zona y hora usando RNN/LSTM.
-""")
+@st.cache_data
+def cargar_datos():
+    ruta = Path(__file__).resolve().parent.parent / "data" / "raw" / "tmdb_2020_to_2025.csv"
+
+    cargador = CargadorDatos(str(ruta))
+    df = cargador.cargar()
+
+    eda = ProcesadorEDA(df)
+    df = eda.limpiar_datos()
+
+    return df
+
+df = cargar_datos()
+
+
+if 'year' not in df.columns:
+    st.error("La columna 'year' no existe en el dataset")
+    st.stop()
+
+
+anio = st.sidebar.slider(
+    "Año",
+    int(df['year'].min()),
+    int(df['year'].max()),
+    int(df['year'].max())
+)
+
+df_filtrado = df[df['year'] == anio]
+
+
+st.title("🎬 Dashboard de Películas")
+st.markdown("Análisis exploratorio interactivo del dataset")
 
 # TABS
-tab_cnn, tab_rnn, tab_info = st.tabs(["📸 Detección en Imágenes", "📈 Predicción Temporal", "📊 Acerca del Proyecto"])
+tab1, tab2, tab3 = st.tabs(["📊 General", "📈 Popularidad", "📊 Correlaciones"])
 
-# TAB 1: CNN
-with tab_cnn:
-    st.markdown('<div class="sub-header">📸 Detección de Actividad Sospechosa (CNN)</div>', unsafe_allow_html=True)
+# TAB 1
+with tab1:
+    st.subheader("📊 Dataset filtrado")
+    st.dataframe(df_filtrado.head(50))
 
-    st.markdown("""
-    Sube una imagen de una cámara CCTV y el modelo clasificará la escena en:
-    - 🟢 **Normal**  
-    - 🔴 **Robo / Asalto**  
-    - ⚔️ **Pelea**  
-    - 👤 **Merodeo**  
-    - 🚮 **Vandalismo**
-    """)
-# TAB 2: RNN
-with tab_rnn:
-    st.markdown('<div class="sub-header">📈 Predicción Temporal de Incidencias (RNN/LSTM)</div>', unsafe_allow_html=True)
+    st.markdown("### 🎬 Películas por año")
+    peliculas_por_anio = df.groupby('year').size().reset_index(name='count')
 
-    st.markdown("""
-    Predice el número de incidentes esperados en las próximas 4 horas para una zona específica,
-    basado en datos históricos del OIJ y condiciones contextuales.
-    """)
+    fig = px.line(
+        peliculas_por_anio,
+        x='year',
+        y='count',
+        title="Cantidad de películas por año"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# TAB 3: Información
-with tab_info:
-    st.markdown('<div class="sub-header">📊 Acerca del Proyecto</div>', unsafe_allow_html=True)
+# TAB 2
+with tab2:
+    st.subheader("🔥 Popularidad")
 
-    col1, col2 = st.columns(2)
+    if not df_filtrado.empty:
+        fig = px.histogram(
+            df_filtrado,
+            x="popularity",
+            nbins=30,
+            title="Distribución de Popularidad"
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    with col1:
-        st.markdown("### 🎯 Objetivos")
-        st.markdown("""
-        - Detectar automáticamente actividades sospechosas en tiempo real a partir de imágenes CCTV.
-        - Predecir zonas y horarios de mayor incidencia delictiva mediante series temporales.
-        - Apoyar la toma de decisiones de seguridad pública con alertas preventivas.
-        """)
-        st.markdown("---")
-        st.markdown("### 🧠 Modelos Implementados")
-        st.markdown("""
-        **CNN (Clasificación de imágenes)**
-        - Arquitectura: Conv2D → MaxPool → Dropout → Softmax
-        - Clases: Normal, Robo/Asalto, Pelea, Merodeo, Vandalismo
-        - Dataset: UCF-Crime Dataset (frames extraídos)
-        - Métrica objetivo: Accuracy ≥ 88%
+        fig2 = px.scatter(
+            df_filtrado,
+            x="vote_count",
+            y="popularity",
+            title="Relación entre votos y popularidad"
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("No hay datos para el año seleccionado")
 
-        **RNN/LSTM (Predicción temporal)**
-        - Arquitectura: LSTM → Dropout → Dense(1)
-        - Ventana histórica: 30 días
-        - Datos: Series de incidentes por zona/hora (OIJ)
-        - Métricas: RMSE, MAE
-        """)
+# TAB 3
+with tab3:
+    st.subheader("📊 Correlación")
 
-    with col2:
-        st.markdown("### 🔧 Tecnologías")
-        st.markdown("""
-        - **Python**
-        - **TensorFlow / Keras** (CNN y RNN)
-        - **OpenCV** (preprocesamiento de imágenes)
-        - **FastAPI** (backend REST)
-        - **Streamlit** (frontend interactivo)
-        - **Docker** (para despliegue)
-        """)
-        st.markdown("---")
-        st.markdown("### 📁 Estructura del Proyecto")
-        st.code("""
-SmartCityIA/
-├── data/
-│   ├── processed/
-│   └── raw/
-├── notebooks/
-├── src/
-│   ├── api/           # FastAPI endpoints
-│   ├── app/           # Streamlit app
-│   └── utils/         # Utilidades
-├── models/            # Modelos .h5
-├── .gitignore
-├── README.md
-└── requirements.txt
-        """)
+    columnas_corr = ['popularity', 'vote_average', 'vote_count']
 
-    st.markdown("---")
-    st.markdown("### 🎓 Conclusiones Esperadas")
-    st.markdown("""
-    - Reducción en tiempos de respuesta ante incidentes.
-    - Asignación proactiva de recursos policiales en zonas de alto riesgo.
-    - Mejora continua mediante actualización con nuevos datos.
-    """)
+    if all(col in df.columns for col in columnas_corr):
+        corr = df[columnas_corr].corr()
 
-# FOOTER
+        fig = px.imshow(
+            corr,
+            text_auto=True,
+            title="Matriz de correlación"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No hay suficientes columnas para la correlación")
+
+
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; padding: 20px; font-size: 0.9rem; color: #4A5B6E;'>
-© 2026 Asistente Inteligente para Seguridad Urbana | Colegio Universitario de Cartago
-
-</div>
-""", unsafe_allow_html=True)
+st.markdown("© 2026 Movie Insights - Proyecto Big Data")
